@@ -59,39 +59,40 @@ int main(int argc, char const *argv[])
     }
 
     //privilege separation starts here
-    pid_t sub_process = fork();
+    pid_t sub_process = fork(); //fork the child process
     int status = 0; 
-    if(sub_process == -1) 
+    if(sub_process < 0) //sub_process < 0 is error
     {
         perror("Fork failed"); 
-        exit(EXIT_FAILURE); 
+        exit(EXIT_FAILURE);  
     }   
 
-    if(sub_process == 0) // child process 
+    if(sub_process == 0) // child process as sub_process == 0
     { 
-        pwd_ptr = getpwnam("nobody");
-        // if(setuid(pwd_ptr->pw_uid) == -1){
-        printf("Log: Child Process: UID of nobody=%ld\n",(long) pwd_ptr->pw_uid);
-        if(setuid(pwd_ptr->pw_uid) != 0){
-            perror("failed to set id of child process");
-            // printf("The user ID is %d not 99 \n", getuid());
+        pwd_ptr = getpwnam("nobody"); //fetch correct user id for nobody user
+        int sid = setuid(pwd_ptr->pw_uid); //drop its privileges to nobody user using setuid
+        if(sid == -1){ //if setuid return value is -1, it's an error
+            printf("Error no=%ld\n",(long) pwd_ptr->pw_uid);
+        }
+        if(sid != 0){
+            perror("Failed to set id of child process");
             exit(EXIT_FAILURE);
-        } else {
+        } else{ //successfully completed setuid as return value is 0
+            printf("Child process uid: %u \n", pwd_ptr->pw_uid);
+
+            //child processes the data from the client
             valread = read(new_socket, buffer, 1024);
             printf("Read %d bytes: %s\n", valread, buffer);
             send(new_socket, hello, strlen(hello), 0);
             printf("Hello message sent\n");
-            printf("*** Child process is done ***\n");
+
+
+            printf("----- Child process is done -----\n");
         }
     } else {
-        while ((sub_process = wait(&status)) > 0);
-        printf("*** Parent process is done ***\n");
+        while ((sub_process = wait(&status)) > 0); //wait for child process to exit
+        printf("----- Parent process is done -----\n");
     }
-
-    // valread = read(new_socket, buffer, 1024);
-    // printf("Read %d bytes: %s\n", valread, buffer);
-    // send(new_socket, hello, strlen(hello), 0);
-    // printf("Hello message sent\n");
 
     return 0;
 
